@@ -3,19 +3,16 @@ from collections import defaultdict
 RARE_WORD_THRESHOLD = 5
 STOPSIGN = "STOP"
 
+
 class Parser(object):
   def __init__(self, path, n=3, with_tags=True):
     self.path = path
     self.n = n
-
     self.sentences = []
     self.tag_seqs = []
     self.token_dict = defaultdict(int)
     self.__initialize()
     self.__map_to_pseudo_words()
-
-    self.emission_dict = None
-    self.ngram_dict = None
 
   def __initialize(self):
     with open(self.path, "r") as f:
@@ -28,7 +25,7 @@ class Parser(object):
           fields = line.split(" ")
           sent.append(fields[0])
           tags.append(fields[-1])
-          self.token_dict(fields[0]) += 1
+          self.token_dict[fields[0]] += 1
         elif sent:
           tags.append(STOPSIGN)
           self.sentences.append(sent)
@@ -44,9 +41,8 @@ class Parser(object):
   def __map_to_pseudo_words(self):
     for sentence in self.sentences:
       for k in xrange(len(sentence)):
-        if token_dict[sentence[k]] >= RARE_WORD_THRESHOLD:
-          continue
-        sentence[k] = self.__replace_token(sentence[k])
+        if self.token_dict[sentence[k]] < RARE_WORD_THRESHOLD:
+          sentence[k] = self.__replace_token(sentence[k])
 
   def __replace_token(self, token):
     num = 0
@@ -71,16 +67,16 @@ class Parser(object):
     return "_RARE_"
 
   def get_raw_counts(self):
-    emission_dict = defaultdict(int)
+    pair_dict = defaultdict(int)
     ngram_dict = [defaultdict(int) for i in xrange(self.n)]
     for i in xrange(len(self.sentences)):
       for j in xrange(len(self.sentences[i]) + 1):
         if j < len(self.sentences[i]):
-          emission_dict[(sentences[i][j], tag_seqs[i][j + 2])] += 1
-          ngram_dict[0][tag_seqs[i][j + 2]] += 1
+          pair_dict[(self.sentences[i][j], self.tag_seqs[i][j + 2])] += 1
+          ngram_dict[0][self.tag_seqs[i][j + 2]] += 1
 
         for k in xrange(1, self.n):
-          ngram_dict[k][tuple(tag_seqs[i][j + 2 - k : j + 3])] += 1
+          ngram_dict[k][tuple(self.tag_seqs[i][j + 2 - k : j + 3])] += 1
 
     ngram_dict[self.n - 2][tuple((self.n - 1) * ["*"])] += len(self.sentences)
-    return emission_dict, ngram_dict
+    return pair_dict, ngram_dict
