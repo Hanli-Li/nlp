@@ -1,10 +1,11 @@
 from parser import Parser
 
+
 class Recognizer(object):
   def __init__(self):
     self.train_set = None
     self.test_set = None
-    self.validation
+    self.validation = None
     self.tags = None
 
     self.emission_params = None
@@ -53,7 +54,8 @@ class Recognizer(object):
       for tag_v in self.tags:
         for tag_u in self.tags:
           for tag_w in self.tags:
-            pi_temp = pi[i - 1][tag_w][tag_u] * self.transition_params[(tag_v, tag_w, tag_u)] * self.emission_params[(sentence[i - 1], tag_v)]
+            pi_temp = pi[i - 1][tag_w][tag_u] * self.transition_params[(tag_v, tag_w, tag_u)] * self.emission_params[
+              (sentence[i - 1], tag_v)]
             if pi_temp > pi[i][tag_u][tag_v]:
               pi[i][tag_u][tag_v] = pi_temp
               parent_tag[(tag_u, tag_v)] = tag_w
@@ -73,6 +75,6 @@ class Recognizer(object):
 
     return tag_seq
 
-    def evaluate(self, path, n=3):
-      self.validation = Parser(path)
-      pass
+  def evaluate(self, path, n=3):
+    self.validation = Parser(path)
+    pass
