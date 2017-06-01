@@ -18,7 +18,7 @@ class Parser(object):
     with open(self.path, "r") as f:
       l = f.readline()
       sent = []
-      tags = (self.n - 1) * ["*"]
+      tags = []
       while l:
         line = l.strip()
         if line:
@@ -26,15 +26,13 @@ class Parser(object):
           sent.append(fields[0])
           tags.append(fields[-1])
           self.token_dict[fields[0]] += 1
-        elif sent:
-          tags.append(STOPSIGN)
+        elif sent and tags:
           self.sentences.append(sent)
           self.tag_seqs.append(tags)
           sent = []
-          tags = (self.n - 1) * ["*"]
+          tags = []
 
-      if sent:
-        tags.append(STOPSIGN)
+      if sent and tags:
         self.sentences.append(sent)
         self.tag_seqs.append(tags)
 
@@ -70,6 +68,9 @@ class Parser(object):
     pair_dict = defaultdict(int)
     ngram_dict = [defaultdict(int) for i in xrange(self.n)]
     for i in xrange(len(self.sentences)):
+      paddings = (self.n - 1) * ["*"]
+      self.tag_seqs[i] = paddings.extend(self.tag_seqs[i])
+      self.tag_seqs[i].append(STOPSIGN)
       for j in xrange(len(self.sentences[i]) + 1):
         if j < len(self.sentences[i]):
           pair_dict[(self.sentences[i][j], self.tag_seqs[i][j + 2])] += 1
