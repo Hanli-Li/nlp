@@ -27,8 +27,8 @@ class Recognizer(object):
     for u, v, w in ngram_dict[n - 1]:
       self.transition_params[(w, u, v)] = ngram_dict[n - 1][(u, v, w)] * 1.0 / ngram_dict[n - 2][(u, v)]
 
-  def recognize_tokens(self, path, n=3):
-    self.test_set = Parser(path, with_tag=False)
+  def tag_tokens(self, path, n=3):
+    self.test_set = Parser(path, with_tags=False)
     tag_seqs = []
     for sentence in self.test_set.sentences:
       tag_seqs.append(self.__generate_tags(sentence))
@@ -75,6 +75,29 @@ class Recognizer(object):
 
     return tag_seq
 
-  def evaluate(self, path, n=3):
-    self.validation = Parser(path)
-    pass
+if __name__ == "__main__":
+  recognizer = Recognizer()
+  recognizer.get_params("./gene.train")
+  recognizer.tag_tokens("./gene.dev")
+  comp_set = Parser("./gene_key.dev")
+
+  print len(comp_set.tag_seqs) == len(recognizer.test_set.tag_seqs)
+
+  true_gene_tag_num = 0
+  pred_gene_tag_num = 0
+  common_gene_tag_num = 0
+  for i in xrange(len(comp_set.tag_seqs)):
+    for j in xrange(len(comp_set.tag_seqs[i])):
+      if recognizer.test_set.tag_seqs[i][j] == "I-GENE":
+        pred_gene_tag_num += 1
+      if comp_set.tag_seqs[i][j] == "I-GENE":
+        true_gene_tag_num += 1
+      if recognizer.test_set.tag_seqs[i][j] == "I-GENE" and comp_set.tag_seqs[i][j] == "I-GENE":
+        common_gene_tag_num += 1
+
+  prec = common_gene_tag_num * 1.0 / pred_gene_tag_num
+  rec = common_gene_tag_num * 1.0 / true_gene_tag_num
+  fscore = (2 * prec * rec)/(prec + rec)
+  print "Precision: %f" % prec
+  print "Recall: %f" % rec
+  print "F Score: %f" % fscore
