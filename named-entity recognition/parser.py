@@ -31,6 +31,7 @@ class Parser(object):
           self.tag_seqs.append(tags)
           sent = []
           tags = []
+        l = f.readline()
 
       if sent and tags:
         self.sentences.append(sent)
@@ -68,9 +69,10 @@ class Parser(object):
     pair_dict = defaultdict(int)
     ngram_dict = [defaultdict(int) for i in xrange(self.n)]
     for i in xrange(len(self.sentences)):
-      paddings = (self.n - 1) * ["*"]
-      self.tag_seqs[i] = paddings.extend(self.tag_seqs[i])
-      self.tag_seqs[i].append(STOPSIGN)
+      tags = (self.n - 1) * ["*"]
+      tags.extend(self.tag_seqs[i])
+      tags.append(STOPSIGN)
+      self.tag_seqs[i] = tags
       for j in xrange(len(self.sentences[i]) + 1):
         if j < len(self.sentences[i]):
           pair_dict[(self.sentences[i][j], self.tag_seqs[i][j + 2])] += 1
@@ -81,3 +83,10 @@ class Parser(object):
 
     ngram_dict[self.n - 2][tuple((self.n - 1) * ["*"])] += len(self.sentences)
     return pair_dict, ngram_dict
+
+if __name__ == "__main__":
+  path = "./gene.train"
+  train_set = Parser(path)
+  pair_dict, ngram_dict = train_set.get_raw_counts()
+  for n in xrange(3):
+    print ngram_dict[n]
