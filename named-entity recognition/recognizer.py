@@ -60,9 +60,9 @@ class Recognizer(object):
       for tag_u in pi[i]:
         for tag_v in pi[i][tag_u]:
           for tag_w in back_tags:
-            if (tag_v, tag_w, tag_u) not in self.transition_params or (sentence[i - 1], tag_v) not in self.emission_params:
-              continue
-            pi_temp = pi[i - 1][tag_w][tag_u] * self.transition_params[(tag_v, tag_w, tag_u)] * self.emission_params[(sentence[i - 1], tag_v)]
+            pi_temp = 0
+            if (tag_v, tag_w, tag_u) in self.transition_params and (sentence[i - 1], tag_v) in self.emission_params:
+              pi_temp = pi[i - 1][tag_w][tag_u] * self.transition_params[(tag_v, tag_w, tag_u)] * self.emission_params[(sentence[i - 1], tag_v)]
             if pi_temp > pi[i][tag_u][tag_v]:
               pi[i][tag_u][tag_v] = pi_temp
               parent_tag[i][(tag_u, tag_v)] = tag_w
@@ -75,9 +75,9 @@ class Recognizer(object):
     max_pi = -1
     for tag_u in prev_tags:
       for tag_v in self.tags:
-        if ("STOP", tag_u, tag_v) not in self.transition_params:
-          continue
-        pi_temp = pi[n][tag_u][tag_v] * self.transition_params[("STOP", tag_u, tag_v)]
+        pi_temp = 0
+        if ("STOP", tag_u, tag_v) in self.transition_params:
+          pi_temp = pi[n][tag_u][tag_v] * self.transition_params[("STOP", tag_u, tag_v)]
         #print tag_u + ', ' + tag_v + ', ' + str(pi_temp)
         if pi_temp > max_pi:
           max_pi = pi_temp
@@ -91,7 +91,7 @@ class Recognizer(object):
       tag_seq[i] = parent_tag[i + 2][tuple(tag_seq[i + 1 : i + 3])]
 
     print tag_seq
-    return tag_seq
+    return tag_seq[1:]
 
 if __name__ == "__main__":
   recognizer = Recognizer()

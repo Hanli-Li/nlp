@@ -42,6 +42,7 @@ class Parser(object):
       for k in xrange(len(sentence)):
         if self.token_dict[sentence[k]] < RARE_WORD_THRESHOLD:
           sentence[k] = "_RARE_"
+          #sentence[k] = self.__replace_token(sentence[k])
 
   def __replace_token(self, token):
     """
