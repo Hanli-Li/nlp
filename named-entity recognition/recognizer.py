@@ -38,7 +38,8 @@ class Recognizer(object):
     """
     viterbi algorithm
     """
-    pi = [{} for i in xrange(len(sentence) + 1)]
+    n = len(sentence)
+    pi = [{} for i in xrange(n + 1)]
     pi[0]["*"] = {"*": 1}
     pi[1]["*"] = {}
     for tag in self.tags:
@@ -51,8 +52,8 @@ class Recognizer(object):
         for tag_y in self.tags:
           pi_dict[tag_x][tag_y] = -1
 
-    parent_tag = {}
-    for i in xrange(1, len(sentence) + 1):
+    parent_tag = [{} for i in xrange(n + 1)]
+    for i in xrange(1, n + 1):
       back_tags = self.tags
       if i <= 2:
         back_tags = ["*"]
@@ -64,44 +65,50 @@ class Recognizer(object):
             pi_temp = pi[i - 1][tag_w][tag_u] * self.transition_params[(tag_v, tag_w, tag_u)] * self.emission_params[(sentence[i - 1], tag_v)]
             if pi_temp > pi[i][tag_u][tag_v]:
               pi[i][tag_u][tag_v] = pi_temp
-              parent_tag[(tag_u, tag_v)] = tag_w
+              parent_tag[i][(tag_u, tag_v)] = tag_w
 
     prev_tags = ["*"]
-    if len(sentence) > 1:
+    if n > 1:
       prev_tags = self.tags
 
-    tag_seq = ["", ""]
+    tag_seq = ["" for i in xrange(n + 1)]
     max_pi = -1
     for tag_u in prev_tags:
       for tag_v in self.tags:
         if ("STOP", tag_u, tag_v) not in self.transition_params:
           continue
-        pi_temp = pi[len(sentence)][tag_u][tag_v] * self.transition_params[("STOP", tag_u, tag_v)]
+        pi_temp = pi[n][tag_u][tag_v] * self.transition_params[("STOP", tag_u, tag_v)]
+        #print tag_u + ', ' + tag_v + ', ' + str(pi_temp)
         if pi_temp > max_pi:
           max_pi = pi_temp
-          tag_seq[0] = tag_u
-          tag_seq[1] = tag_v
+          tag_seq[n - 1] = tag_u
+          tag_seq[n] = tag_v
 
-    if len(sentence) == 1:
+    if n == 1:
       return tag_seq[1]
 
-    while len(tag_seq) < len(sentence):
-      tag_seq.insert(0, parent_tag[tuple(tag_seq[0:2])])
+    for i in range(n - 2, 0, -1):
+      tag_seq[i] = parent_tag[i + 2][tuple(tag_seq[i + 1 : i + 3])]
 
+    print tag_seq
     return tag_seq
 
 if __name__ == "__main__":
   recognizer = Recognizer()
   recognizer.get_params("./gene.train")
   recognizer.tag_tokens("./gene.dev")
-  comp_set = Parser("./gene_key.dev")
 
+  comp_set = Parser("./gene_key.dev")
+  
   print len(comp_set.tag_seqs) == len(recognizer.test_set.tag_seqs)
 
   true_gene_tag_num = 0
   pred_gene_tag_num = 0
   common_gene_tag_num = 0
   for i in xrange(len(comp_set.tag_seqs)):
+    print recognizer.test_set.tag_seqs[i]
+    print comp_set.tag_seqs[i]
+    print "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
     for j in xrange(len(comp_set.tag_seqs[i])):
       if recognizer.test_set.tag_seqs[i][j] == "I-GENE":
         pred_gene_tag_num += 1
@@ -112,7 +119,7 @@ if __name__ == "__main__":
 
   prec = common_gene_tag_num * 1.0 / pred_gene_tag_num
   rec = common_gene_tag_num * 1.0 / true_gene_tag_num
-  fscore = (2 * prec * rec)/(prec + rec)
+  fscore = (2 * prec * rec) / (prec + rec)
   print "Precision: %f" % prec
   print "Recall: %f" % rec
   print "F Score: %f" % fscore

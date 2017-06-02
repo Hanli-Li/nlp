@@ -41,9 +41,10 @@ class Parser(object):
     for sentence in self.sentences:
       for k in xrange(len(sentence)):
         if self.token_dict[sentence[k]] < RARE_WORD_THRESHOLD:
-          sentence[k] = self.__replace_token(sentence[k])
+          sentence[k] = "_RARE_"
 
   def __replace_token(self, token):
+    """
     num = 0
     alpha = False
     caps = 0
@@ -62,6 +63,14 @@ class Parser(object):
     elif caps == len(token):
       return "_ALLCAPS_"
     elif token[-1].isupper():
+      return "_LASTCAP_"
+    return "_RARE_"
+    """
+    if any(char.isdigit() for char in token):
+      return "_NUMERIC_"
+    if token.isupper():
+      return "_ALLCAPS_"
+    if token[-1].isupper():
       return "_LASTCAP_"
     return "_RARE_"
 
@@ -88,5 +97,13 @@ if __name__ == "__main__":
   path = "./gene.train"
   train_set = Parser(path)
   pair_dict, ngram_dict = train_set.get_raw_counts()
-  for n in xrange(3):
-    print ngram_dict[n]
+  
+  f = file('counts.test', 'w+')
+  for word, ne_tag in pair_dict:
+    f.write("%i WORDTAG %s %s\n" % (pair_dict[(word, ne_tag)], ne_tag, word))
+
+  for n in xrange(1, 4):            
+    for ngram in ngram_dict[n-1]:
+      ngramstr = " ".join(ngram)
+      f.write("%i %i-GRAM %s\n" %(ngram_dict[n-1][ngram], n, ngramstr))
+  f.close()
