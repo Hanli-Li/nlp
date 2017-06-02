@@ -39,36 +39,51 @@ class Recognizer(object):
     viterbi algorithm
     """
     pi = [{} for i in xrange(len(sentence) + 1)]
-    for i in xrange(len(pi)):
+    pi[0]["*"] = {"*": 1}
+    pi[1]["*"] = {}
+    for tag in self.tags:
+      pi[1]["*"][tag] = -1
+
+    for i in xrange(2, len(pi)):
       pi_dict = pi[i]
       for tag_x in self.tags:
         pi_dict[tag_x] = {}
         for tag_y in self.tags:
-          if i == 0:
-            pi_dict[tag_x][tag_y] = 1
-          else:
-            pi_dict[tag_x][tag_y] = -1
+          pi_dict[tag_x][tag_y] = -1
 
     parent_tag = {}
     for i in xrange(1, len(sentence) + 1):
-      for tag_v in self.tags:
-        for tag_u in self.tags:
-          for tag_w in self.tags:
-            pi_temp = pi[i - 1][tag_w][tag_u] * self.transition_params[(tag_v, tag_w, tag_u)] * self.emission_params[
-              (sentence[i - 1], tag_v)]
+      back_tags = self.tags
+      if i <= 2:
+        back_tags = ["*"]
+      for tag_u in pi[i]:
+        for tag_v in pi[i][tag_u]:
+          for tag_w in back_tags:
+            if (tag_v, tag_w, tag_u) not in self.transition_params or (sentence[i - 1], tag_v) not in self.emission_params:
+              continue
+            pi_temp = pi[i - 1][tag_w][tag_u] * self.transition_params[(tag_v, tag_w, tag_u)] * self.emission_params[(sentence[i - 1], tag_v)]
             if pi_temp > pi[i][tag_u][tag_v]:
               pi[i][tag_u][tag_v] = pi_temp
               parent_tag[(tag_u, tag_v)] = tag_w
 
+    prev_tags = ["*"]
+    if len(sentence) > 1:
+      prev_tags = self.tags
+
     tag_seq = ["", ""]
     max_pi = -1
-    for tag_v in self.tags:
-      for tag_u in self.tags:
+    for tag_u in prev_tags:
+      for tag_v in self.tags:
+        if ("STOP", tag_u, tag_v) not in self.transition_params:
+          continue
         pi_temp = pi[len(sentence)][tag_u][tag_v] * self.transition_params[("STOP", tag_u, tag_v)]
         if pi_temp > max_pi:
           max_pi = pi_temp
           tag_seq[0] = tag_u
           tag_seq[1] = tag_v
+
+    if len(sentence) == 1:
+      return tag_seq[1]
 
     while len(tag_seq) < len(sentence):
       tag_seq.insert(0, parent_tag[tuple(tag_seq[0:2])])
