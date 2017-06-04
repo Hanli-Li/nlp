@@ -1,130 +1,152 @@
-from parser import Parser
+from collections import defaultdict
+import util
 
+RARE_TOKEN_THRESHOLD = 5
+STOP = "STOP"
 
-class Recognizer(object):
-  def __init__(self):
-    self.train_set = None
-    self.test_set = None
-    self.tags = None
+class Reader(object):
+    def __init__(self, path, n=3):
+        self.path = path
+        self.n = n
+        self.token_counts = defaultdict(int)
+        self.pair_counts = defaultdict(int)
+        self.ngram_counts = [defaultdict(int) for i in xrange(self.n)]
 
-    self.emission_params = None
-    self.transition_params = None
+    def get_raw_counts(self):
+        ngram_iterator = util.train_get_ngram(\
+            util.sentence_iterator(\
+                util.file_iterator(self.path)))
 
-  def get_params(self, path, n=3):
-    """
-    use mle estimates directly
-    """
-    self.train_set = Parser(path)
-    self.train_set.map_to_pseudo_words()
-    pair_dict, ngram_dict = self.train_set.get_raw_counts()
-    self.tags = list(ngram_dict[0].keys())
+        for ngram in ngram_iterator:
+            tags = zip(*ngram_pair)[1]
+            for i in xrange(1, self.n):
+                self.ngram_counts[i][tags[-1 - i:]] += 1
 
-    self.emission_params = {}
-    for token, tag in pair_dict:
-      self.emission_params[(token, tag)] = pair_dict[(token, tag)] * 1.0 / ngram_dict[0][tag]
+            if tags[-2] == "*":
+                self.ngram_counts[self.n - 2][tags[0 : -1]] += 1
 
-    self.transition_params = {}
-    for w, u, v in ngram_dict[n - 1]:
-      self.transition_params[(v, w, u)] = ngram_dict[n - 1][(w, u, v)] * 1.0 / ngram_dict[n - 2][(w, u)]
+            if ngram_pair[-1][0]:
+                self.ngram_counts[0][tags[-1]] += 1
+                self.pair_counts[ngram[-1]] += 1
+                self.token_counts[ngram[-1][0]] += 1
 
-  def tag_tokens(self, path, n=3):
-    self.test_set = Parser(path, with_tags=False)
-    
-    tag_seqs = []
-    for sentence in self.test_set.sentences:
-      tag_seqs.append(self.__generate_tags(sentence))
-    self.test_set.tag_seqs = tag_seqs
+class HMM(Reader):
+    def __init__(self, path, n=3):
+        super(Processor, self).__init__(path, n)
+        self.tags = set()
+        self.tokens = set()
+        self.rare_tokens = set()
+        self.emission_params = {}
+        self.transition_params = {}
 
-  def __generate_tags(self, sentence):
-    """
-    viterbi algorithm
-    """
-    n = len(sentence)
-    pi = [{} for j in xrange(n + 1)]
-    pi[0]["*"] = {"*": 1}
-    pi[1]["*"] = {}
-    for tag in self.tags:
-      pi[1]["*"][tag] = -1
+    def train(self):
+        super(Processor, self).get_raw_counts()
+        self.__get_vocabulary()
+        self.__get_rare_tokens()
+        self.with_pseudo_words()
+        self.calculate_params()
 
-    for j in xrange(2, n + 1):
-      for tag_x in self.tags:
-        pi[j][tag_x] = {}
-        for tag_y in self.tags:
-          pi[j][tag_x][tag_y] = -1
+    def __get_vocabulary(self):
+        for token, tag in self.pair_counts:
+            self.tags.add(tag)
+            self.tokens.add(token)
 
-    for j in xrange(n + 1):
-      print pi[j]
+    def __get_rare_tokens(self):
+        for k in token_counts:
+            if token_counts[k] < RARE_TOKEN_THRESHOLD:
+                self.rare_tokens.add(k)
 
-    parent_tag = [{} for i in xrange(n + 1)]
-    for j in xrange(1, n + 1):
-      back_tags = self.tags
-      if j <= 2:
-        back_tags = ["*"]
-      for tag_u in pi[j]:
-        for tag_v in pi[j][tag_u]:
-          for tag_w in back_tags:
-            pi_temp = 0
-            if (sentence[j - 1], tag_v) in self.emission_params:
-              pi_temp = pi[j - 1][tag_w][tag_u] * self.transition_params[(tag_v, tag_w, tag_u)] * self.emission_params[(sentence[j - 1], tag_v)]
-            if pi_temp > pi[j][tag_u][tag_v]:
-              pi[j][tag_u][tag_v] = pi_temp
-              parent_tag[j][(tag_u, tag_v)] = tag_w
+    def with_pseudo_words(self):
+        if not self.tags or not self.tokens or not self.rare_tokens:
+            self.preprocess()
 
-    prev_tags = ["*"]
-    if n > 1:
-      prev_tags = self.tags
+        localcounts = defaultdict(int)
+        for token, tag in pair_counts:
+            if token in self.rare_tokens:
+                token = util.map_to_pseudo_word(token)
+            localcounts[(token, tag)] += 1
+        self.pair_counts = localcounts
 
-    tag_seq = ["" for j in xrange(n + 1)]
-    max_pi = -1
-    for tag_u in prev_tags:
-      for tag_v in self.tags:
-        pi_temp = pi[n][tag_u][tag_v] * self.transition_params[("STOP", tag_u, tag_v)]
-        if pi_temp > max_pi:
-          max_pi = pi_temp
-          tag_seq[n - 1] = tag_u
-          tag_seq[n] = tag_v
+    def calculate_params(self):
+        self.__get_emission_params()
+        self.__get_transition_paras()
 
-    if n == 1:
-      return tag_seq[1]
+    def __get_emission_params(self):
+        for pair in self.pair_counts:
+            self.emission_params[pair] = float(self.pair_counts[pair]) / float(self.ngram_counts[0][pair[-1]])
 
-    for j in range(n - 2, 0, -1):
-      tag_seq[j] = parent_tag[j + 2][tuple(tag_seq[j + 1 : j + 3])]
+    def __get_transition_params(self):
+        """
+        use mle estimates directly
+        """
+        for ngram in self.ngram_counts[self.n - 1]:
+            self.transition_params[ngram] = \
+                float(self.ngram_counts[self.n - 1][ngram]) / float(self.ngram_counts[self.n - 2][ngram[:-1]])
 
-    return tag_seq[1:]
+class Tagger(Processor):
+    def __init(self, train_path, n=3):
+        super(Tagger, self).__init__(train_path, n)
 
-if __name__ == "__main__":
-  recognizer = Recognizer()
-  recognizer.get_params("./gene.train")
-  recognizer.tag_tokens("./test.dev")
+    def tag_sentences(self. test_path):
+        sentences = util.sentence_iterator(util.file_iterator(test_path))
+        for sent in sentences:
+            tags = self.__get_tags(sent)
 
-  """
-  f = file("gene_dev.p1.out", "w+")
-  comp_set = Parser("./gene_key.dev")
-  
-  print len(comp_set.tag_seqs) == len(recognizer.test_set.tag_seqs)
+    def __get_tags(self, sentence):
+        """
+        viterbi algorithm
+        """
+        n = len(sentence)
+        pi = [{} for j in xrange(n + 1)]
+        pi[0]["*"] = {"*": 1}
+        pi[1]["*"] = {}
+        for v in self.tags:
+            pi[1]["*"][v] = -1
 
-  true_gene_tag_num = 0
-  pred_gene_tag_num = 0
-  common_gene_tag_num = 0
-  for i in xrange(len(comp_set.tag_seqs)):
-    print recognizer.test_set.tag_seqs[i]
-    print comp_set.tag_seqs[i]
-    print "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
-    for j in xrange(len(comp_set.tag_seqs[i])):
-      if recognizer.test_set.tag_seqs[i][j] == "I-GENE":
-        pred_gene_tag_num += 1
-      if comp_set.tag_seqs[i][j] == "I-GENE":
-        true_gene_tag_num += 1
-      if recognizer.test_set.tag_seqs[i][j] == "I-GENE" and comp_set.tag_seqs[i][j] == "I-GENE":
-        common_gene_tag_num += 1
+        for j in xrange(2, n + 1):
+            for u in self.tags:
+                pi[j][u] = {}
+                for v in self.tags:
+                    pi[j][u][v] = -1
 
-      f.write("%s %s\n" %(comp_set.sentences[i][j], recognizer.test_set.tag_seqs[i][j]))
-    f.write("\n")
-  f.close()
-  prec = common_gene_tag_num * 1.0 / pred_gene_tag_num
-  rec = common_gene_tag_num * 1.0 / true_gene_tag_num
-  fscore = (2 * prec * rec) / (prec + rec)
-  print "Precision: %f" % prec
-  print "Recall: %f" % rec
-  print "F Score: %f" % fscore
-  """
+        parent_tag = [{} for i in xrange(n + 1)]
+        for j in xrange(1, n + 1):
+            x = sentence[j - 1]
+            if x not in self.tokens or x in self.tokens:
+                x = util.map_to_pseudo_word(x)
+
+            back_tags = self.tags
+            if j <= 2:
+                back_tags = ["*"]
+
+            for u in pi[j]:
+                for v in pi[j][tag_u]:
+                    for w in back_tags:
+                        pi_temp = 0
+                        if (x, v) in self.emission_params:
+                            pi_temp = pi[j - 1][w][u] * self.transition_params[(w, u, v)] * self.emission_params[(x, v)]
+                        if pi_temp > pi[j][u][v]:
+                            pi[j][u][v] = pi_temp
+                            parent_tag[j][(u, v)] = w
+
+        prev_tags = ["*"]
+        if n > 1:
+            prev_tags = self.tags
+
+        tag_seq = ["" for j in xrange(n + 1)]
+        max_pi = -1
+        for u in prev_tags:
+            for v in self.tags:
+                pi_temp = pi[n][u][v] * self.transition_params[(STOP, u, v)]
+                if pi_temp > max_pi:
+                    max_pi = pi_temp
+                    tag_seq[n - 1] = u
+                    tag_seq[n] = v
+
+        if n == 1:
+            return tag_seq[1]
+
+        for j in range(n - 2, 0, -1):
+            tag_seq[j] = parent_tag[j + 2][tuple(tag_seq[j + 1 : j + 3])]
+
+        return tag_seq[1:]
