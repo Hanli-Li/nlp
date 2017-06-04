@@ -1,7 +1,12 @@
 from collections import defaultdict
 
-RARE_WORD_THRESHOLD = 5
-STOPSIGN = "STOP"
+RARE_TOKEN_THRESHOLD = 5
+STOP = "STOP"
+NUMERIC = "_NUMERIC_"
+ALPHANUMERIC = "_ALPHANUMERIC_"
+ALLCAPS = "_ALLCAPS_"
+LASTCAP = "_LASTCAP_"
+RARE = "_RARE_"
 
 
 class Parser(object):
@@ -12,7 +17,6 @@ class Parser(object):
     self.tag_seqs = []
     self.token_dict = defaultdict(int)
     self.__initialize()
-    self.__map_to_pseudo_words()
 
   def __initialize(self):
     with open(self.path, "r") as f:
@@ -37,15 +41,14 @@ class Parser(object):
         self.sentences.append(sent)
         self.tag_seqs.append(tags)
 
-  def __map_to_pseudo_words(self):
+  def map_to_pseudo_words(self):
     for sentence in self.sentences:
       for k in xrange(len(sentence)):
-        if self.token_dict[sentence[k]] < RARE_WORD_THRESHOLD:
-          sentence[k] = "_RARE_"
+        if self.token_dict[sentence[k]] < RARE_TOKEN_THRESHOLD:
+          sentence[k] = RARE
           #sentence[k] = self.__replace_token(sentence[k])
 
   def __replace_token(self, token):
-    """
     num = 0
     alpha = False
     caps = 0
@@ -58,22 +61,23 @@ class Parser(object):
           caps += 1
 
     if num == len(token):
-      return "_NUMERIC_"
+      return NUMERIC
     elif num > 0 and alpha:
-      return "_ALPHANUMERIC_"
+      return ALPHANUMERIC
     elif caps == len(token):
-      return "_ALLCAPS_"
+      return ALLCAPS
     elif token[-1].isupper():
-      return "_LASTCAP_"
-    return "_RARE_"
+      return LASTCAP
+    return RARE
     """
     if any(char.isdigit() for char in token):
-      return "_NUMERIC_"
+      return NUMERIC
     if token.isupper():
-      return "_ALLCAPS_"
+      return ALLCAPS
     if token[-1].isupper():
-      return "_LASTCAP_"
-    return "_RARE_"
+      return LASTCAP
+    return RARE
+    """
 
   def get_raw_counts(self):
     pair_dict = defaultdict(int)
