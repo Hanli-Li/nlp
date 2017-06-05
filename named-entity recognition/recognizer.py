@@ -1,6 +1,5 @@
 from collections import defaultdict
 import util
-from decimal import Decimal
 
 RARE_TOKEN_THRESHOLD = 5
 STOP = "STOP"
@@ -31,37 +30,24 @@ class Reader(object):
                 self.pair_counts[ngram[-1]] += 1
                 self.token_counts[ngram[-1][0]] += 1
 
-        """
-        # temporary debug
-        output = open("gene_train.counts", "w+")
-        for word, ne_tag in self.pair_counts:            
-            output.write("%i WORDTAG %s %s\n" % (self.pair_counts[(word, ne_tag)], ne_tag, word))
-
-        # Then write counts for all ngrams
-        for n in xrange(1, self.n + 1):            
-            for ngram in self.ngram_counts[n-1]:
-                ngramstr = " ".join(ngram)
-                output.write("%i %i-GRAM %s\n" %(self.ngram_counts[n-1][ngram], n, ngramstr))
-        output.close()
-        """
-
 
 class HMM(Reader):
     def __init__(self, n=3):
         super(HMM, self).__init__(n)
         self.tags = set()
         self.tokens = set()
-        self.rare_tokens = set()
+        #self.rare_tokens = set()
         self.emission_params = {}
         self.transition_params = {}
 
     def train(self, file_path):
         super(HMM, self).get_raw_counts(file_path)
-        self.__get_vocabulary()
-        self.__get_rare_tokens()
+        #self.__get_vocabulary()
+        #self.__get_rare_tokens()
         self.with_pseudo_words()
         self.calculate_params()
 
+    """
     def __get_vocabulary(self):
         for token, tag in self.pair_counts:
             self.tags.add(tag)
@@ -80,6 +66,18 @@ class HMM(Reader):
                 newtoken = util.map_to_pseudo_word(token)
             localcounts[(newtoken, tag)] += self.pair_counts[(token, tag)]
         self.pair_counts = localcounts
+    """
+
+    def with_pseudo_words(self):
+        localcounts = defaultdict(int)
+        for token, tag in self.pair_counts:
+            newtoken = token
+            if self.token_counts[token] < RARE_TOKEN_THRESHOLD:
+                newtoken = util.map_to_pseudo_word(token)
+            localcounts[(newtoken, tag)] += self.pair_counts[(token, tag)]
+            self.tags.add(tag)
+            self.tokens.add(newtoken)
+        self.pair_counts = localcounts
 
     def calculate_params(self):
         self.__get_emission_params()
@@ -97,43 +95,12 @@ class HMM(Reader):
             self.transition_params[ngram] = \
                 float(self.ngram_counts[self.n - 1][ngram]) / float(self.ngram_counts[self.n - 2][ngram[:-1]])
 
-"""
-class SimpleTagger(HMM):
-    def __init(self, n=3):
-        super(SimpleTagger, self).__init__(n)
-
-    def tag_sentences(self, test_path, output_file_path):
-        output_file = open(output_file_path, "w+")
-        sentences = util.sentence_iterator(util.file_iterator(test_path))
-        for sent in sentences:
-            tags = self.__get_tags(sent)
-            for i in xrange(len(sent)):
-                output_file.write("%s %s\n" %(sent[i], tags[i]))
-            output_file.write("\n")
-        output_file.close()
-
-    def __get_tags(self, sentence):
-        tag_seq = []
-        for x in sentence:
-            if x not in self.tokens or x in self.rare_tokens:
-                x = util.map_to_pseudo_word(x)
-
-            max_tag = ""
-            max_prob = -1
-            for v in self.tags:
-                if (x, v) in self.emission_params:
-                    if self.emission_params[(x, v)] > max_prob:
-                        max_prob = self.emission_params[(x, v)]
-                        max_tag = v
-            tag_seq.append(max_tag)
-        return tag_seq
-"""
 
 class Tagger(HMM):
     def __init(self, n=3):
         super(Tagger, self).__init__(n)
 
-    def tag_sentences(self, test_path, output_file_path):
+    def tag(self, test_path, output_file_path):
         output_file = open(output_file_path, "w+")
         sentences = util.sentence_iterator(util.file_iterator(test_path))
         for sent in sentences:
@@ -163,7 +130,8 @@ class Tagger(HMM):
         parent_tag = [{} for i in xrange(n + 1)]
         for j in xrange(1, n + 1):
             x = sentence[j - 1]
-            if x not in self.tokens or x in self.rare_tokens:
+            #if x not in self.tokens or x in self.rare_tokens:
+            if x not in self.tokens:
                 x = util.map_to_pseudo_word(x)
 
             back_tags = self.tags
@@ -210,4 +178,4 @@ if __name__ == '__main__':
 
     model = Tagger(3)
     model.train(train_file)
-    model.tag_sentences(test_file, output_file)
+    model.tag(test_file, output_file)
