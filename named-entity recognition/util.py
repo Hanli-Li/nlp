@@ -71,5 +71,3 @@ def map_to_pseudo_word(token):
     elif token[-1].isupper():
         return LASTCAP
     return RARE
-
-
