@@ -4,6 +4,7 @@ ALLCAPS = "_ALLCAPS_"
 LASTCAP = "_LASTCAP_"
 RARE = "_RARE_"
 
+
 def file_iterator(path):
     with open(path, "r") as file:
         l = file.readline()
@@ -21,6 +22,7 @@ def file_iterator(path):
                 yield None
             l = file.readline()
 
+
 def sentence_iterator(file_iterator):
     sentence = []
     for item in file_iterator:
@@ -36,6 +38,7 @@ def sentence_iterator(file_iterator):
     if sentence:
         yield sentence
 
+
 def train_get_ngram(sentence_iterator, n):
     for sent in sentence_iterator:
         sent_ex = (n - 1) * [(None, "*")]
@@ -44,6 +47,7 @@ def train_get_ngram(sentence_iterator, n):
 
         for i in xrange(2, len(sent_ex)):
             yield sent_ex[i - 2 : i + 1]
+
 
 def map_to_pseudo_word(token):
     #return "_RARE"

@@ -4,43 +4,44 @@ import util
 RARE_TOKEN_THRESHOLD = 5
 STOP = "STOP"
 
+
 class Reader(object):
-    def __init__(self, path, n=3):
-        self.path = path
+    def __init__(self, n=3):
         self.n = n
         self.token_counts = defaultdict(int)
         self.pair_counts = defaultdict(int)
         self.ngram_counts = [defaultdict(int) for i in xrange(self.n)]
 
-    def get_raw_counts(self):
-        ngram_iterator = util.train_get_ngram(\
-            util.sentence_iterator(\
-                util.file_iterator(self.path)))
+    def get_raw_counts(self, file_path):
+        ngram_iterator = util.train_get_ngram(
+            util.sentence_iterator(
+                util.file_iterator(file_path)), self.n)
 
         for ngram in ngram_iterator:
-            tags = zip(*ngram_pair)[1]
+            tags = zip(*ngram)[1]
             for i in xrange(1, self.n):
                 self.ngram_counts[i][tags[-1 - i:]] += 1
 
             if tags[-2] == "*":
-                self.ngram_counts[self.n - 2][tags[0 : -1]] += 1
+                self.ngram_counts[self.n - 2][tags[0:-1]] += 1
 
-            if ngram_pair[-1][0]:
+            if ngram[-1][0]:
                 self.ngram_counts[0][tags[-1]] += 1
                 self.pair_counts[ngram[-1]] += 1
                 self.token_counts[ngram[-1][0]] += 1
 
+
 class HMM(Reader):
-    def __init__(self, path, n=3):
-        super(Processor, self).__init__(path, n)
+    def __init__(self, n=3):
+        super(HMM, self).__init__(n)
         self.tags = set()
         self.tokens = set()
         self.rare_tokens = set()
         self.emission_params = {}
         self.transition_params = {}
 
-    def train(self):
-        super(Processor, self).get_raw_counts()
+    def train(self, file_path):
+        super(HMM, self).get_raw_counts(file_path)
         self.__get_vocabulary()
         self.__get_rare_tokens()
         self.with_pseudo_words()
@@ -52,16 +53,13 @@ class HMM(Reader):
             self.tokens.add(token)
 
     def __get_rare_tokens(self):
-        for k in token_counts:
-            if token_counts[k] < RARE_TOKEN_THRESHOLD:
+        for k in self.token_counts:
+            if self.token_counts[k] < RARE_TOKEN_THRESHOLD:
                 self.rare_tokens.add(k)
 
     def with_pseudo_words(self):
-        if not self.tags or not self.tokens or not self.rare_tokens:
-            self.preprocess()
-
         localcounts = defaultdict(int)
-        for token, tag in pair_counts:
+        for token, tag in self.pair_counts:
             if token in self.rare_tokens:
                 token = util.map_to_pseudo_word(token)
             localcounts[(token, tag)] += 1
@@ -69,7 +67,7 @@ class HMM(Reader):
 
     def calculate_params(self):
         self.__get_emission_params()
-        self.__get_transition_paras()
+        self.__get_transition_params()
 
     def __get_emission_params(self):
         for pair in self.pair_counts:
@@ -83,11 +81,12 @@ class HMM(Reader):
             self.transition_params[ngram] = \
                 float(self.ngram_counts[self.n - 1][ngram]) / float(self.ngram_counts[self.n - 2][ngram[:-1]])
 
-class Tagger(Processor):
-    def __init(self, train_path, n=3):
-        super(Tagger, self).__init__(train_path, n)
 
-    def tag_sentences(self. test_path):
+class Tagger(HMM):
+    def __init(self, n=3):
+        super(Tagger, self).__init__(n)
+
+    def tag_sentences(self, test_path):
         sentences = util.sentence_iterator(util.file_iterator(test_path))
         for sent in sentences:
             tags = self.__get_tags(sent)
@@ -120,7 +119,7 @@ class Tagger(Processor):
                 back_tags = ["*"]
 
             for u in pi[j]:
-                for v in pi[j][tag_u]:
+                for v in pi[j][u]:
                     for w in back_tags:
                         pi_temp = 0
                         if (x, v) in self.emission_params:
@@ -147,6 +146,6 @@ class Tagger(Processor):
             return tag_seq[1]
 
         for j in range(n - 2, 0, -1):
-            tag_seq[j] = parent_tag[j + 2][tuple(tag_seq[j + 1 : j + 3])]
+            tag_seq[j] = parent_tag[j + 2][tuple(tag_seq[j + 1:j + 3])]
 
         return tag_seq[1:]
