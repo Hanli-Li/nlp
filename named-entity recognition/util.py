@@ -50,7 +50,8 @@ def train_get_ngram(sentence_iterator, n):
 
 
 def map_to_pseudo_word(token):
-    #return "_RARE"
+    #return RARE
+
     num = 0
     alpha = False
     caps = 0
@@ -71,3 +72,4 @@ def map_to_pseudo_word(token):
     elif token[-1].isupper():
         return LASTCAP
     return RARE
+

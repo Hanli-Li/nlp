@@ -1,5 +1,6 @@
 from collections import defaultdict
 import util
+from decimal import Decimal
 
 RARE_TOKEN_THRESHOLD = 5
 STOP = "STOP"
@@ -29,6 +30,20 @@ class Reader(object):
                 self.ngram_counts[0][tags[-1]] += 1
                 self.pair_counts[ngram[-1]] += 1
                 self.token_counts[ngram[-1][0]] += 1
+
+        """
+        # temporary debug
+        output = open("gene_train.counts", "w+")
+        for word, ne_tag in self.pair_counts:            
+            output.write("%i WORDTAG %s %s\n" % (self.pair_counts[(word, ne_tag)], ne_tag, word))
+
+        # Then write counts for all ngrams
+        for n in xrange(1, self.n + 1):            
+            for ngram in self.ngram_counts[n-1]:
+                ngramstr = " ".join(ngram)
+                output.write("%i %i-GRAM %s\n" %(self.ngram_counts[n-1][ngram], n, ngramstr))
+        output.close()
+        """
 
 
 class HMM(Reader):
@@ -60,9 +75,10 @@ class HMM(Reader):
     def with_pseudo_words(self):
         localcounts = defaultdict(int)
         for token, tag in self.pair_counts:
+            newtoken = token
             if token in self.rare_tokens:
-                token = util.map_to_pseudo_word(token)
-            localcounts[(token, tag)] += 1
+                newtoken = util.map_to_pseudo_word(token)
+            localcounts[(newtoken, tag)] += self.pair_counts[(token, tag)]
         self.pair_counts = localcounts
 
     def calculate_params(self):
@@ -81,15 +97,51 @@ class HMM(Reader):
             self.transition_params[ngram] = \
                 float(self.ngram_counts[self.n - 1][ngram]) / float(self.ngram_counts[self.n - 2][ngram[:-1]])
 
+"""
+class SimpleTagger(HMM):
+    def __init(self, n=3):
+        super(SimpleTagger, self).__init__(n)
+
+    def tag_sentences(self, test_path, output_file_path):
+        output_file = open(output_file_path, "w+")
+        sentences = util.sentence_iterator(util.file_iterator(test_path))
+        for sent in sentences:
+            tags = self.__get_tags(sent)
+            for i in xrange(len(sent)):
+                output_file.write("%s %s\n" %(sent[i], tags[i]))
+            output_file.write("\n")
+        output_file.close()
+
+    def __get_tags(self, sentence):
+        tag_seq = []
+        for x in sentence:
+            if x not in self.tokens or x in self.rare_tokens:
+                x = util.map_to_pseudo_word(x)
+
+            max_tag = ""
+            max_prob = -1
+            for v in self.tags:
+                if (x, v) in self.emission_params:
+                    if self.emission_params[(x, v)] > max_prob:
+                        max_prob = self.emission_params[(x, v)]
+                        max_tag = v
+            tag_seq.append(max_tag)
+        return tag_seq
+"""
 
 class Tagger(HMM):
     def __init(self, n=3):
         super(Tagger, self).__init__(n)
 
-    def tag_sentences(self, test_path):
+    def tag_sentences(self, test_path, output_file_path):
+        output_file = open(output_file_path, "w+")
         sentences = util.sentence_iterator(util.file_iterator(test_path))
         for sent in sentences:
             tags = self.__get_tags(sent)
+            for i in xrange(len(sent)):
+                output_file.write("%s %s\n" %(sent[i], tags[i]))
+            output_file.write("\n")
+        output_file.close()
 
     def __get_tags(self, sentence):
         """
@@ -111,7 +163,7 @@ class Tagger(HMM):
         parent_tag = [{} for i in xrange(n + 1)]
         for j in xrange(1, n + 1):
             x = sentence[j - 1]
-            if x not in self.tokens or x in self.tokens:
+            if x not in self.tokens or x in self.rare_tokens:
                 x = util.map_to_pseudo_word(x)
 
             back_tags = self.tags
@@ -136,7 +188,7 @@ class Tagger(HMM):
         max_pi = -1
         for u in prev_tags:
             for v in self.tags:
-                pi_temp = pi[n][u][v] * self.transition_params[(STOP, u, v)]
+                pi_temp = pi[n][u][v] * self.transition_params[(u, v, STOP)]
                 if pi_temp > max_pi:
                     max_pi = pi_temp
                     tag_seq[n - 1] = u
@@ -149,3 +201,13 @@ class Tagger(HMM):
             tag_seq[j] = parent_tag[j + 2][tuple(tag_seq[j + 1:j + 3])]
 
         return tag_seq[1:]
+
+
+if __name__ == '__main__':
+    train_file = "gene.train"
+    test_file = "gene.dev"
+    output_file = "gene_dev.p1.out"
+
+    model = Tagger(3)
+    model.train(train_file)
+    model.tag_sentences(test_file, output_file)
