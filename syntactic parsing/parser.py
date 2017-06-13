@@ -9,9 +9,13 @@ class PCFG(CNFTreeReader):
         super(PCFG, self).__init__()
         self.binary_params = None
         self.unary_params = None
+        self.pos_tags = None
+        self.syn_tags = None
 
     def derive_pcfg(self, file_path):
         super(PCFG, self).read_corpus(file_path)
+        self.pos_tags = self.postag_counts.keys()
+        self.syn_tags = self.syntag_counts.keys()
         self.__replace_with_pseudo_words()
         self.__calculate_binary_rule_params()
         self.__calculate_unary_rule_params()
@@ -48,8 +52,8 @@ class Parser(PCFG):
     def __init__(self):
         super(Parser, self).__init__()
 
-    def parse(self, test_file_path):
-        with open(test_file_path, "r") as f:
+    def parse(self, test_file):
+        with open(test_file, "r") as f:
             l = f.readline()
             while l:
                 line = l.strip()
@@ -59,4 +63,11 @@ class Parser(PCFG):
                 l = f.readline()
 
     def __parse_sentence(self, sent):
-        pass
+        """
+        CKY parsing algorithm
+        """
+        n = len(sent)
+        pi = {}
+
+        for i in xrange(n):
+            pi
