@@ -5,9 +5,10 @@ from collections import defaultdict
 class CNFTreeReader(object):
     def __init__(self):
         self.token_counts = defaultdict(int)
-        self.nonterminal_counts = defaultdict(int)
-        self.unary_counts = defaultdict(int)
-        self.binary_counts = defaultdict(int)
+        self.syntag_counts = defaultdict(int)
+        self.postag_counts = defaultdict(int)
+        self.unary_counts = defaultdict(lambda: defaultdict(int))
+        self.binary_counts = defaultdict(lambda: defaultdict(int))
 
     def read_corpus(self, file_path):
         with open(file_path, "r") as f:
@@ -20,14 +21,16 @@ class CNFTreeReader(object):
                 l = f.readline()
 
     def __read_tree(self, tree):
-        parent = tree[0]
-        self.nonterminal_counts[parent] += 1
-
         if len(tree) == 2:
-            self.token_counts[tree[1]] += 1
-            self.unary_counts[(parent, tree[1])] += 1
+            postag = tree[0]
+            token = tree[1]
+            self.postag_counts[postag] += 1
+            self.token_counts[token] += 1
+            self.unary_counts[postag][token] += 1
         elif len(tree) == 3:
-            self.binary_counts[(parent, tree[1][0], tree[2][0])] += 1
+            syntag = tree[0]
+            self.syntag_counts[syntag] += 1
+            self.binary_counts[syntag][(tree[1][0], tree[2][0])] += 1
             self.__read_tree(tree[1])
             self.__read_tree(tree[2])
 

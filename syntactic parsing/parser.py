@@ -7,8 +7,8 @@ RARE_TOKEN_THRESHOLD = 5
 class PCFG(CNFTreeReader):
     def __init__(self):
         super(PCFG, self).__init__()
-        self.binary_params = defaultdict(int)
-        self.unary_params = defaultdict(int)
+        self.binary_params = None
+        self.unary_params = None
 
     def derive_pcfg(self, file_path):
         super(PCFG, self).read_corpus(file_path)
@@ -17,21 +17,31 @@ class PCFG(CNFTreeReader):
         self.__calculate_unary_rule_params()
 
     def __replace_with_pseudo_words(self):
-        localcounts = defaultdict(int)
-        for syntag, token in self.unary_counts:
-            newtoken = token
-            if self.token_counts[token] < RARE_TOKEN_THRESHOLD:
-                newtoken = map_to_pseudo_word(token)
-            localcounts[(syntag, newtoken)] += self.unary_counts[(syntag, token)]
+        localcounts = {}
+        for postag in self.unary_counts:
+            localcounts[postag] = defaultdict(int)
+            for token in self.unary_counts[postag]:
+                newtoken = token
+                if self.token_counts[token] < RARE_TOKEN_THRESHOLD:
+                    newtoken = map_to_pseudo_word(token)
+                localcounts[postag][newtoken] += self.unary_counts[syntag][newtoken]
         self.unary_counts = localcounts
 
     def __calculate_binary_rule_params(self):
-        for k in self.binary_counts:
-            self.binary_params[k] = float(self.binary_counts[k]) / float(self.nonterminal_counts[k[0]])
+        self.binary_params = {}
+        for syntag in self.binary_counts:
+            self.binary_params[syntag] = {}
+            for children in self.binary_counts[syntag]:
+                self.binary_params[syntag][children] = float(self.binary_counts[syntag][children])\
+                                                        / float(self.syntag_counts[syntag])
 
     def __calculate_unary_rule_params(self):
-        for k in self.unary_counts:
-            self.unary_params[k] = float(self.unary_counts[k]) / float(self.nonterminal_counts[k[0]])
+        self.unary_params = {}
+        for postag in self.unary_counts:
+            self.unary_params[postag] = {}
+            for token in self.unary_counts[postag]:
+                self.unary_params[postag][token] = float(self.unary_counts[postag][token])\
+                                                    / float(self.postag_counts[postag])
 
 
 class Parser(PCFG):
