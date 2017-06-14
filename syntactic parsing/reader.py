@@ -35,17 +35,22 @@ class CNFTreeReader(object):
             self.__read_tree(tree[2])
 
     def print_raw_counts(self):
-        for k, v in self.nonterminal_counts.iteritems():
+        for k, v in self.syntag_counts.iteritems():
             print v, "NON-TERMINAL", k
 
-        for k, v in self.unary_counts.iteritems():
-            print v, "UNARY", k[0], k[1]
+        for k, v in self.postag_counts.iteritems():
+            print v, "NON-TERMINAL", k
 
-        for k, v in self.binary_counts.iteritems():
-            print v, "BINARY", k[0], k[1], k[2]
+        for postag in self.unary_counts:
+            for token, v in self.unary_counts[postag].iteritems():
+                print v, "UNARY", postag, token
+
+        for syntag in self.binary_counts:
+            for child, v in self.binary_counts[syntag].iteritems():
+                print v, "BINARY", syntag, child[0], child[1]
 
 
 if __name__ == '__main__':
     tr = CNFTreeReader()
-    tr.read_corpus("test.dat")
+    tr.read_corpus("train.dat")
     tr.print_raw_counts()

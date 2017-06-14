@@ -1,8 +1,11 @@
 from reader import CNFTreeReader
 from collections import defaultdict
+import json
 
 RARE_TOKEN_THRESHOLD = 5
 ROOT_TAG = "SBARQ"
+RARE = "_RARE_"
+
 
 class PCFG(CNFTreeReader):
     def __init__(self):
@@ -16,6 +19,7 @@ class PCFG(CNFTreeReader):
         super(PCFG, self).read_corpus(file_path)
         self.pos_tags = self.postag_counts.keys()
         self.syn_tags = self.syntag_counts.keys()
+        print self.syn_tags
         self.__replace_with_pseudo_words()
         self.__calculate_binary_rule_params()
         self.__calculate_unary_rule_params()
@@ -27,8 +31,8 @@ class PCFG(CNFTreeReader):
             for token in self.unary_counts[postag]:
                 newtoken = token
                 if self.token_counts[token] < RARE_TOKEN_THRESHOLD:
-                    newtoken = map_to_pseudo_word(token)
-                localcounts[postag][newtoken] += self.unary_counts[postag][newtoken]
+                    newtoken = RARE #map_to_pseudo_word(token)
+                localcounts[postag][newtoken] += self.unary_counts[postag][token]
         self.unary_counts = localcounts
 
     def __calculate_binary_rule_params(self):
@@ -52,26 +56,31 @@ class Parser(PCFG):
     def __init__(self):
         super(Parser, self).__init__()
 
-    def parse(self, test_file):
-        with open(test_file, "r") as f:
+    def parse(self, test_file, out_file):
+        with open(test_file, "r") as f, open(out_file, "w+") as o:
             l = f.readline()
             while l:
                 line = l.strip()
                 if line:
                     sentence = line.split(" ")
-                    self.__parse_sentence(sentence)
+                    tree = self.__parse_sentence(sentence)
+                    o.write(json.dumps(tree))
+                o.write("\n")
                 l = f.readline()
 
-    def __parse_sentence(self, sent):
+    def __parse_sentence(self, sentence):
         """
         CKY parsing algorithm
         """
-        n = len(sent)
+        n = len(sentence)
         pi = {}
+        sent = []
 
         for i in xrange(n):
-            if sent[i] not in self.token_counts or self.token_counts[sent[i]] < RARE_TOKEN_THRESHOLD:
-                sent[i] = map_to_pseudo_word(sent[i])
+            if sentence[i] not in self.token_counts or self.token_counts[sentence[i]] < RARE_TOKEN_THRESHOLD:
+                sent.append(RARE)
+            else:
+                sent.append(sentence[i])
             for x in self.pos_tags:
                 pi[(i, i, x)] = 0
                 if sent[i] in self.unary_params[x]:
@@ -83,7 +92,7 @@ class Parser(PCFG):
                 j = i + l - 1
                 tags = self.syn_tags
                 if l == n:
-                    tags = ROOT_TAG
+                    tags = [ROOT_TAG]
                 for x in tags:
                     pi[(i, j, x)] = -1
                     for s in xrange(i, j):
@@ -95,7 +104,7 @@ class Parser(PCFG):
                                 pi[(i, j, x)] = pi_temp
                                 bp[(i, j, x)] = (s, y, z)
 
-        return self.__reconstruct(bp, 0, n - 1, ROOT_TAG, sent)
+        return self.__reconstruct(bp, 0, n - 1, ROOT_TAG, sentence)
 
     def __reconstruct(self, bp, start, end, tag, sent):
         tree = [tag]
@@ -104,8 +113,14 @@ class Parser(PCFG):
             return tree
 
         (s, y, z) = bp[(start, end, tag)]
-        left = self.__reconstruct(self, bp, start, s, y, sent)
-        right = self.__reconstruct(self, bp, s + 1, end, z, sent)
+        left = self.__reconstruct(bp, start, s, y, sent)
+        right = self.__reconstruct(bp, s + 1, end, z, sent)
         tree.append(left)
         tree.append(right)
         return tree
+
+
+if __name__ == '__main__':
+    parser = Parser()
+    parser.derive_pcfg("parse_train_vert.dat")
+    parser.parse("parse_dev.dat", "output.dat")
