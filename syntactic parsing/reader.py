@@ -34,7 +34,7 @@ class CNFTreeReader(object):
             self.__read_tree(tree[1])
             self.__read_tree(tree[2])
 
-    def print_raw_counts:
+    def print_raw_counts(self):
         for k, v in self.nonterminal_counts.iteritems():
             print v, "NON-TERMINAL", k
 
