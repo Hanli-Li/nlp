@@ -95,7 +95,7 @@ class Parser(PCFG):
                                 pi[(i, j, x)] = pi_temp
                                 bp[(i, j, x)] = (s, y, z)
 
-        return self.__reconstruct()
+        return self.__reconstruct(bp, 0, n - 1, ROOT_TAG, sent)
 
     def __reconstruct(self, bp, start, end, tag, sent):
         tree = [tag]
