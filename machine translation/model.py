@@ -10,12 +10,7 @@ class IBMModel(object):
 
     def initialize(self, train_e, train_f):
         for e_sent, f_sent in IBMModel.corpora_iterator(train_e, train_f):
-            fs = [NULL]
-            es = [NULL]
-            fs.extend(f_sent.split(" "))
-            es.extend(e_sent.split(" "))
-            m_k = len(fs) - 1
-            l_k = len(es) - 1
+            es, m_k, fs, l_k = self.__split_sentences(e_sent, f_sent)
             for i in xrange(1, len(fs)):
                 for j in xrange(len(es)):
                     self.t[es[j]][fs[i]] = 0.0
@@ -35,13 +30,7 @@ class IBMModel(object):
             e-step
             """
             for e_sent, f_sent in IBMModel.corpora_iterator(train_e, train_f):
-                fs = [NULL]
-                fs.extend(f_sent.split(" "))
-                m_k = len(fs) - 1
-
-                es = [NULL]
-                es.extend(e_sent.split(" "))
-                l_k = len(es) - 1
+                es, m_k, fs, l_k = self.__split_sentences(e_sent, f_sent)
                 for i in xrange(1, m_k + 1):
                     partition = 0.0
                     for j in xrange(l_k + 1):
@@ -71,13 +60,7 @@ class IBMModel(object):
         with open(outfile, "w") as o:
             k = 1
             for e_sent, f_sent in corpora_iter:
-                fs = [NULL]
-                fs.extend(f_sent.split(" "))
-                m_k = len(fs) - 1
-
-                es = [NULL]
-                es.extend(e_sent.split(" "))
-                l_k = len(es) - 1
+                es, m_k, fs, l_k = self.__split_sentences(e_sent, f_sent)
                 for i in xrange(1, len(fs)):
                     idx = -1
                     value = -1.0
@@ -88,8 +71,17 @@ class IBMModel(object):
                         if prob > value:
                             value = prob
                             idx = j
-                    o.write("%s %s %s\n" %(k, idx, i))
+                    o.write("%s %s %s\n" % (k, idx, i))
                 k += 1
+
+    def __split_sentences(self, e_sent, f_sent):
+        fs = [NULL]
+        fs.extend(f_sent.split(" "))
+        m_k = len(fs) - 1
+        es = [NULL]
+        es.extend(e_sent.split(" "))
+        l_k = len(es) - 1
+        return es, m_k, fs, l_k
 
     @staticmethod
     def corpora_iterator(e_corpus, f_corpus):
@@ -119,5 +111,5 @@ class IBM_1_2(IBMModel):
 
 if __name__ == '__main__':
     model = IBM_1_2(ibm1=False)
-    model.train("corpus.eng", "corpus.esp")
-    model.align("dev.eng", "dev.esp", "alignment.key")
+    model.train("corpus.en", "corpus.es")
+    model.align("dev.en", "dev.es", "alignment.key")
