@@ -1,28 +1,38 @@
-from model import IBMModel, IBM_1_2
+from model import IBMModel
+
+
+class IBM_1_2(IBMModel):
+    def __init__(self, ibm1=False):
+        super(IBM_1_2, self).__init__()
+        self.ibm1 = ibm1
+
+    def train(self, train_e, train_f):
+        self.initialize(train_e, train_f)
+        self.em(train_e, train_f)
+        if not self.ibm1:
+            self.em(train_e, train_f, ibm1=self.ibm1)
 
 
 class Finder(object):
     def __init__(self):
-        self.model = IBM_1_2()
         self.ordered = None
         self.reversed = None
-        self.alignments = None
-        self.directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
 
     def align(self, train_e, train_f, test_e, test_f):
+        model = IBM_1_2()
         print "p(f|e)..."
-        self.model.train(train_e, train_f)
-        self.ordered = self.model.align(test_e, test_f)
+        model.train(train_e, train_f)
+        self.ordered = model.align(test_e, test_f)
 
         print "p(e|f)..."
-        self.model.train(train_f, train_e)
-        self.reversed = self.model.align(test_f, test_e, reverse=True)
+        model.train(train_f, train_e)
+        self.reversed = model.align(test_f, test_e, reverse=True)
 
     def grow(self):
-        self.alignments = {}
+        print "growing..."
+        alignments = {}
         for k in xrange(1, len(self.reversed) + 1):
-            self.alignments[k] = []
-            set_o = set(self.orderd[k])
+            set_o = set(self.ordered[k])
             set_r = set(self.reversed[k])
 
             inter = set_o & set_r
@@ -32,13 +42,6 @@ class Finder(object):
             paired_e = set([v[0] for v in inter])
             paired_f = set([v[1] for v in inter])
 
-            """
-            max_f = list_o[-1][1]
-            max_e = list_r[-1][0]
-
-            unpaired_f = set(range(1, max_f + 1)) - paired_f
-            unpaired_e = set(range(1, max_e + 1)) - paired_e
-            """
             add_on = []
             for v in diff:
                 if v[0] in paired_e and v[1] in paired_f:
@@ -49,35 +52,25 @@ class Finder(object):
                         add_on.append(v)
                         break
 
-            self.alignments.extend(list(inter))
-            self.alignments.extend(add_on)
-            self.alignments.sort(key=lambda x : x[1])
+            alignments[k] = list(inter)
+            alignments[k].extend(add_on)
+        return alignments
 
     def __get_neighbors(self, grid):
         neighbors = []
-        for direction in self.directions:
-            neighbors.add((grid[0] + direction[0], grid[1] + direction[1]))
+        for i in xrange(-1, 2):
+            for j in xrange(-1, 2):
+                neighbors.append((grid[0] + i, grid[1] + j))
         return neighbors
-
-    def write_alignments(self, output_file):
-        with open(output_file, "w") as o:
-            for k in xrange(1, len(self.alignments) + 1):
-                for v in self.alignments[k]:
-                    o.write("%s %s %s\n" % (k, v[0], v[1]))
 
 
 if __name__ == '__main__':
+    model = IBM_1_2()
+    model.train("corpus.en", "corpus.es")
+    alignments = model.align("dev.en", "dev.es")
+    IBMModel.write_alignments(alignments, "alignments.key")
+
     finder = Finder()
     finder.align("corpus.en", "corpus.es", "dev.en", "dev.es")
-    finder.grow()
-    model.write_alignment("alignments2.key")
-
-
-
-
-
-
-
-
-
-
+    growed_alignments = finder.grow()
+    IBMModel.write_alignments(growed_alignments, "growed_alignments.key")
