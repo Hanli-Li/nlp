@@ -42,18 +42,18 @@ class Finder(object):
             paired_e = set([v[0] for v in inter])
             paired_f = set([v[1] for v in inter])
 
-            add_on = []
             for v in diff:
                 if v[0] in paired_e and v[1] in paired_f:
                     continue
 
                 for nbr in self.__get_neighbors(v):
                     if nbr in inter:
-                        add_on.append(v)
+                        paired_e.add(v[0])
+                        paired_f.add(v[1])
+                        inter.add(v)
                         break
 
             alignments[k] = list(inter)
-            alignments[k].extend(add_on)
         return alignments
 
     def __get_neighbors(self, grid):
@@ -65,12 +65,15 @@ class Finder(object):
 
 
 if __name__ == '__main__':
+    """
     model = IBM_1_2()
     model.train("corpus.en", "corpus.es")
     alignments = model.align("dev.en", "dev.es")
     IBMModel.write_alignments(alignments, "alignments.key")
+    """
 
     finder = Finder()
     finder.align("corpus.en", "corpus.es", "dev.en", "dev.es")
     growed_alignments = finder.grow()
     IBMModel.write_alignments(growed_alignments, "growed_alignments.key")
+

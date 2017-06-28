@@ -98,6 +98,20 @@ class IBMModel(object):
                     o.write("%s %s %s\n" % (k, v[0], v[1]))
 
     @staticmethod
+    def read_alignments(infile):
+        alignments = {}
+        with open(infile, "r") as f:
+            l = f.readline()
+            while l:
+                line = l.strip().split(" ")
+                k = int(line[0])
+                if k not in alignments:
+                    alignments[k] = []
+                alignments[k].append((int(line[1]), int(line[2])))
+                l = f.readline()
+        return alignments
+
+    @staticmethod
     def corpora_iterator(e_corpus, f_corpus):
         with open(e_corpus, "r") as e, open(f_corpus, "r") as f:
             le = e.readline()
@@ -109,3 +123,4 @@ class IBMModel(object):
                     yield e_line, f_line
                 le = e.readline()
                 lf = f.readline()
+
