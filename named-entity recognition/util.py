@@ -71,3 +71,16 @@ def map_to_pseudo_word(token):
     elif token[-1].isupper():
         return LASTCAP
     return RARE
+
+
+def read_params(param_file):
+    mu = {}
+    with open(param_file, "r") as f:
+        l = f.readline()
+        while l:
+            line = l.strip().split(" ")
+            key = line[0]
+            val = line[1]
+            mu[key] = float(val)
+            l = f.readline()
+    return mu
