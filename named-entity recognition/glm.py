@@ -5,7 +5,7 @@ import util
 STOP = "STOP"
 SUFFIX_LEN = 3
 
-class GLM(object):
+class GLM(Tagger):
     def __init__(self):
         self.params = None
 
