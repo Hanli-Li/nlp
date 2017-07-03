@@ -1,6 +1,9 @@
+STOP = "STOP"
+
 class Tagger(object):
-    def __init__(self):
-        pass
+    def __init__(self, params):
+        self.params = None
+        
 
     def tag(self, param_file, outfile, testfile):
         mu = read_params(param_file)
@@ -37,7 +40,7 @@ class Tagger(object):
             for u in pi[k]:
                 for v in pi[k][u]:
                     for w in W:
-                        pi_temp = calculate_score(w, u, v, x, k, pi, mu)
+                        pi_temp = local_score(w, u, v, x, k, pi, mu)
                         if not pi[k][u][v] or pi_temp > pi[k][u][v]:
                             pi[k][u][v] = pi_temp
                             bp[k][(u, v)] = w
@@ -50,8 +53,7 @@ class Tagger(object):
         max_pi = -1
         for u in prev_tags:
             for v in tags:
-                #pi_temp = local_score(u, v, "STOP", "", -1, pi, mu)
-                pi_temp = pi[n][u][v] + mu[("TRIGRAM" + ":" + u + ":" + v + ":STOP")]
+                pi_temp = local_score(u, v, STOP, "", n + 1, pi, mu)
                 if pi_temp > max_pi:
                     max_pi = pi_temp
                     tag_seq[n - 1] = u
@@ -62,5 +64,5 @@ class Tagger(object):
 
         return tag_seq[1:]
 
-    def calculate_score(self, w, u, v, x, k, pi, mu):
-        pass
+    def local_score(self, tag2, tag1, tag, word, idx, pi, mu):
+        raise NotImplementedError
