@@ -59,14 +59,9 @@ class GLM(object):
     def local_score(self, tag2, tag1, tag, word, idx, pi):
         score = pi[idx - 1][tag2][tag1]
         if tag == STOP:
-            score += self.params.get(self.__trigram_feature(tag2, tag1, tag))
+            score += self.params.get(self.__trigram_feature(tag2, tag1, tag), 0)
         else:
             features = self.local_features(tag2, tag1, tag, word)
             for feature in features:
                 score += self.params.get(feature, 0)
         return score
-
-
-    
-
-            
