@@ -14,7 +14,7 @@ class GLM(Tagger):
         if param_file:
             self.params = util.read_params(param_file)
 
-    def train(self, trainfile, iter_num=20):
+    def train(self, trainfile, iter_num=6):
         self.params = defaultdict(float)
         for i in xrange(iter_num):
             print 'iteration ' + str(i + 1)
