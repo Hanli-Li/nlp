@@ -15,9 +15,6 @@ class Tagger(object):
             sentences = util.sentence_iterator(util.file_iterator(testfile))
             for sent in sentences:
                 tags = self.viterbi(sent, glm=self.glm)
-                print sent
-                print tags
-                print "--------------------------------------------------------------------"
                 for i in xrange(len(sent)):
                     o.write("%s %s\n" % (sent[i], tags[i]))
                 o.write("\n")
