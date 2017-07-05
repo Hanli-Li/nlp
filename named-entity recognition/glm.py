@@ -67,7 +67,7 @@ class GLM(Tagger):
             features = self.__local_features(tags[i], tags[i + 1], tags[i + 2], sentence[i])
             for f in features:
                 vector[f] += 1
-        #vector[self.__trigram(tags[-2], tags[-1], STOP)] += 1
+        vector[self.__trigram(tags[-2], tags[-1], STOP)] += 1
         return vector
 
     def local_score(self, tag2, tag1, tag, word, score):
