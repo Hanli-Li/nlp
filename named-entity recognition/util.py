@@ -1,9 +1,10 @@
 NUMERIC = "_NUMERIC_"
-ALPHANUMERIC = "_ALPHANUMERIC_"
+WITHNUM = "_WITHNUM_"
 ALLCAPS = "_ALLCAPS_"
 LASTCAP = "_LASTCAP_"
 RARE = "_RARE_"
-
+STOP = "STOP"
+START = "*"
 
 def file_iterator(path):
     with open(path, "r") as file:
@@ -41,9 +42,9 @@ def sentence_iterator(file_iterator):
 
 def train_get_ngram(sentence_iterator, n):
     for sent in sentence_iterator:
-        sent_ex = (n - 1) * [(None, "*")]
+        sent_ex = (n - 1) * [(None, START)]
         sent_ex.extend(sent)
-        sent_ex.extend([(None, "STOP")])
+        sent_ex.extend([(None, STOP)])
 
         for i in xrange(2, len(sent_ex)):
             yield sent_ex[i - 2 : i + 1]
@@ -65,7 +66,7 @@ def map_to_pseudo_word(token):
     if num == len(token):
         return NUMERIC
     elif num > 0 and alpha:
-        return ALPHANUMERIC
+        return WITHNUM
     elif caps == len(token):
         return ALLCAPS
     elif token[-1].isupper():
@@ -84,4 +85,3 @@ def read_params(param_file):
             mu[key] = float(val)
             l = f.readline()
     return mu
-    

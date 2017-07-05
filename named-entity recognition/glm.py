@@ -3,6 +3,7 @@ from tagger import Tagger
 import util
 
 STOP = "STOP"
+START = "*"
 SUFFIX_LEN = 3
 
 
@@ -13,23 +14,31 @@ class GLM(Tagger):
         if param_file:
             self.params = util.read_params(param_file)
 
-    def train(self, trainfile, iter_num=6):
+    def train(self, trainfile, iter_num=20):
         self.params = defaultdict(float)
         for i in xrange(iter_num):
-            for sentence in util.sentence_iterator(util.file_iterator(trainfile)):
-                sent, tags = zip(*sentence)
-                self.perceptron(list(sent), list(tags))
+            print 'iteration ' + str(i + 1)
+            for sent in util.sentence_iterator(util.file_iterator(trainfile)):
+                sentence, tags = zip(*sent)
+                self.__perceptron(list(sentence), list(tags))
+        # self.__write_params()
 
-    def perceptron(self, sentence, tags):
+    def __perceptron(self, sentence, tags):
         z = self.viterbi(sentence)
-        fxz = self.global_features(sentence, z)
-        fxy = self.global_features(sentence, tags)
-        for f in fxz:
-            self.params[f] -= fxz[f]
-        for f in fxy:
-            self.params[f] += fxy[f]
+        if z != tags:
+            fxz = self.__feature_vec(sentence, z)
+            fxy = self.__feature_vec(sentence, tags)
+            for f in fxz:
+                self.params[f] -= fxz[f]
+            for f in fxy:
+                self.params[f] += fxy[f]
 
-    def local_features(self, tag2, tag1, tag, word):
+    def __write_params(self, param_file="suffix_tagger.model"):
+        with open(param_file, "w") as p:
+            for k, v in self.params.iteritems():
+                p.write("{} {}\n".format(k, v))
+
+    def __local_features(self, tag2, tag1, tag, word):
         features = []
         features.append(self.__trigram(tag2, tag1, tag))
         features.append(self.__word_tag(word, tag))
@@ -46,30 +55,30 @@ class GLM(Tagger):
         features = []
         for i in xrange(1, SUFFIX_LEN + 1):
             if i > len(word):
-                continue
+                break
             suffix = word[-i:]
             features.append("SUFFIX:{}:{}:{}".format(suffix, i, tag))
         return features
 
-
-    def global_features(self, sentence, tags):
-        features = defaultdict(int)
-        tags = ["*" , "*"] + tags
+    def __feature_vec(self, sentence, tags):
+        vector = defaultdict(int)
+        tags = [START , START] + tags
         for i in xrange(len(sentence)):
-            local_features = self.local_features(tags[i], tags[i + 1], tags[i + 2], sentence[i])
-            for f in local_features:
-                features[f] += 1
-        features[self.__trigram(tags[-2], tags[-1], STOP)] += 1
-        return features
+            features = self.__local_features(tags[i], tags[i + 1], tags[i + 2], sentence[i])
+            for f in features:
+                vector[f] += 1
+        #vector[self.__trigram(tags[-2], tags[-1], STOP)] += 1
+        return vector
 
     def local_score(self, tag2, tag1, tag, word, score):
         if tag == STOP:
             score += self.params.get(self.__trigram(tag2, tag1, tag), 0)
         else:
-            features = self.local_features(tag2, tag1, tag, word)
-            for feature in features:
-                score += self.params.get(feature, 0)
+            features = self.__local_features(tag2, tag1, tag, word)
+            for f in features:
+                score += self.params.get(f, 0)
         return score
+
 
 if __name__ == '__main__':
     #tagger = GLM(param_file="tag.model")
