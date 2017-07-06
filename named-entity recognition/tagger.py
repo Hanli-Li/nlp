@@ -40,11 +40,9 @@ class Tagger(object):
         bp = [{} for i in xrange(n + 1)]
         for k in xrange(1, n + 1):
             x = self.get_word(sentence[k - 1])
-
             back_tags = tags
             if k < 3:
                 back_tags = [START]
-
             for u in pi[k]:
                 for v in pi[k][u]:
                     for w in back_tags:

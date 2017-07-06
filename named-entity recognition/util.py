@@ -6,6 +6,7 @@ RARE = "_RARE_"
 STOP = "STOP"
 START = "*"
 
+
 def file_iterator(path):
     with open(path, "r") as file:
         l = file.readline()
