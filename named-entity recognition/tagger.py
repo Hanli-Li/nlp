@@ -8,7 +8,6 @@ class Tagger(object):
     def __init__(self, glm=True):
         self.tags = ["O", "I-GENE"] # for incomplete trigram params, the order here matters
         self.glm = glm
-        self.tokens = None
         
     def tag(self, testfile, outfile):
         with open(outfile, "w") as o:
@@ -40,9 +39,7 @@ class Tagger(object):
 
         bp = [{} for i in xrange(n + 1)]
         for k in xrange(1, n + 1):
-            x = sentence[k - 1]
-            if not glm and x not in self.tokens:
-                x = util.map_to_pseudo_word(x)
+            x = self.get_word(sentence[k - 1])
 
             back_tags = tags
             if k < 3:
@@ -75,4 +72,7 @@ class Tagger(object):
         return tag_seq[1:]
 
     def local_score(self, tag2, tag1, tag, word, score):
+        raise NotImplementedError
+
+    def get_word(self, token):
         raise NotImplementedError

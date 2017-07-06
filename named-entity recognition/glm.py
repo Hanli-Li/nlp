@@ -79,6 +79,9 @@ class GLM(Tagger):
                 score += self.params.get(f, 0)
         return score
 
+    def get_word(self, token):
+        return token
+
 
 if __name__ == '__main__':
     #tagger = GLM(param_file="tag.model")

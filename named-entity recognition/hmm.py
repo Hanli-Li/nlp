@@ -80,6 +80,12 @@ class HMM(Reader, Tagger):
             score *= self.emission_params.get((word, tag), 0)
         return score
 
+    def get_word(self, token):
+        word = token
+        if token not in self.tokens:
+            word = util.map_to_pseudo_word(token)
+        return word
+
 
 if __name__ == '__main__':
     train_file = "gene.train"
